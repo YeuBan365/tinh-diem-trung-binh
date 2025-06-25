@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Tính điểm trung bình HUTECH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: #eef4fb;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      line-height: 1.6;
+    }
+    .navbar {
+      background-color: #004AAD;
+      color: white;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      position: sticky; top: 0; z-index: 1000;
+    }
+    .navbar h1 { margin: 0; font-size: 20px; }
+    .container {
+      max-width: 950px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+    .card {
+      background-color: white;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      margin-bottom: 25px;
+    }
+    .unlock-area {
+      background-color: #fffbe6;
+      border: 1px solid #ffe58f;
+    }
+    h2, h3 { 
+      margin-top: 0; 
+      color: #004AAD; 
+      border-bottom: 2px solid #eef4fb; 
+      padding-bottom: 8px;
+      margin-bottom: 15px;
+    }
+    label { font-weight: bold; display: block; margin: 12px 0 6px; }
+    input, select {
+      box-sizing: border-box;
+      padding: 10px;
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus, select:focus {
+        border-color: #004AAD;
+        box-shadow: 0 0 0 2px rgba(0, 74, 173, 0.2);
+        outline: none;
+    }
+    #searchBox {
+        margin-bottom: 20px;
+    }
+    button {
+      background: #004AAD;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      margin-top: 10px;
+      margin-right: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+    button:hover { background: #00337d; transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    
+    button.btn-xoa-hang {
+        background-color: #dc3545; padding: 5px 10px; font-size: 12px;
+        margin: 0;
+    }
+    button.btn-xoa-hang:hover { background-color: #c82333; }
+    button#btn-xoa { background-color: #dc3545; }
+    button#btn-xoa:hover { background-color: #c82333; }
+    button#btn-save-github { background-color: #28a745; }
+    button#btn-save-github:hover { background-color: #218838; }
+    button#btn-thoat { background-color: #6c757d; }
+    button#btn-thoat:hover { background-color: #5a6268; }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+    th, td {
+        padding: 12px;
+        border: 1px solid #ddd;
+        text-align: left;
+    }
+    th {
+        background-color: #004AAD;
+        color: white;
+        font-weight: bold;
+    }
+    tbody tr:nth-child(even) { background-color: #f9f9f9; }
+    tbody tr:hover { background-color: #f1f1f1; }
+    td[contenteditable="true"] {
+        background-color: #ffffff;
+        cursor: text;
+    }
+    td[contenteditable="true"]:focus {
+        background-color: #e6f7ff;
+        outline: 2px solid #004AAD;
+    }
+    #result-container {
+        margin-top: 20px;
+        padding: 15px;
+        background: #eef4fb;
+        border-radius: 8px;
+        border: 1px solid #004AAD;
+    }
+    .result-item {
+        font-size: 18px;
+        font-weight: bold;
+        color: #004AAD;
+        margin: 8px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="navbar">
+    <h1>🎓 Hệ thống Tính Điểm Trung Bình HUTECH</h1>
+  </div>
+
+  <div class="container">
+    <div id="unlock-section" class="card unlock-area">
+      <h2>Mở khóa Dữ liệu Admin</h2>
+      <p>Dữ liệu của Admin được mã hóa. Vui lòng nhập mật khẩu để tải và giải mã.</p>
+      <label for="matKhau">Mật khẩu của Admin:</label>
+      <input type="password" id="matKhau" placeholder="Nhập mật khẩu để mở khóa..." onkeydown="if(event.key==='Enter') taiVaGiaiMaDuLieu()">
+      <button onclick="taiVaGiaiMaDuLieu()">🔑 Mở khóa và Tải dữ liệu</button>
+      <a href="https://yeuban365.github.io/tinh-diem-trung-binh/encrypt.html" target="_blank" style="text-decoration: none;">
+          <button type="button" style="background-color: #17a2b8;">⚙️ Mở Công cụ Mã hóa</button>
+      </a>
+      <button type="button" id="btn-download-json" style="background-color: #007bff;">📥 Tải dữ liệu .json</button>
+      <button type="button" id="btn-thoat">🚪 Thoát</button>
+      <p id="unlock-feedback"></p>
+    </div>
+
+    <div class="card">
+      <h2>Nhập Học phần của bạn</h2>
+      <form id="form-them-mon">
+          <label for="ma-mon-hoc">Mã môn học:</label>
+          <input type="text" id="ma-mon-hoc" required>
+          <label for="ten-mon-hoc">Tên môn học:</label>
+          <input type="text" id="ten-mon-hoc" required>
+          <label for="so-tin-chi">Số tín chỉ (từ 1 đến 4):</label>
+          <input type="number" id="so-tin-chi" min="1" max="4" required>
+          <label for="diem-he-10">Điểm hệ số 10:</label>
+          <input type="number" id="diem-he-10" step="0.1" min="0" max="10" required>
+          
+          <button type="submit" id="btn-them-mon-hoc">➕ Thêm môn</button>
+          <button type="button" id="btn-tinh-diem-trung-binh">📊 Tính điểm</button>
+          <button type="button" id="btn-xoa">🗑️ Xóa tất cả</button>
+          <button type="button" id="btn-luu">💾 Lưu file .doc</button>
+          <button type="button" id="btn-save-github">💾 Lưu & Cập nhật lên Trang chủ[Admin]</button>
+      </form>
+      <p id="thong-bao" style="color: red; font-weight: bold;"></p>
+      
+       <div id="upload-section" style="border-top: 1px solid #eee; margin-top: 20px; padding-top: 20px;">
+        <h3>Hoặc tải lên từ file Excel (.xlsx)</h3>
+        <p><em>File Excel của bạn cần có các cột với tiêu đề chính xác sau: <strong>MaMonHoc, TenMonHoc, SoTinChi, DiemHe10</strong></em></p>
+        <input type="file" id="file-upload" accept=".xlsx, .xls" style="border: none; padding-left: 0;">
+        <p id="upload-feedback"></p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Bảng điểm Chi tiết</h2>
+      <p><em>Mẹo: Bạn có thể nhấp chuột trực tiếp vào các ô có nền trắng trong bảng để sửa đổi.</em></p>
+      <input id="searchBox" placeholder="🔍 Tìm kiếm mã hoặc tên môn...">
+      <table>
+        <thead>
+          <tr>
+            <th>Mã môn học</th>
+            <th>Tên môn học</th>
+            <th>Số TC</th>
+            <th>Điểm 10</th>
+            <th>Điểm 4</th>
+            <th>Xếp loại</th>
+            <th>Trạng thái</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody id="body-bang-diem"></tbody>
+      </table>
+      <div id="result-container">
+          <p class="result-item" id="tong-tin-chi"></p>
+          <p class="result-item" id="diem-trung-binh-tich-luy"></p>
+      </div>
+    </div>
+  </div>
+
+<script>
+let bangDiem = [];
+const GITHUB_USER = 'YeuBan365';
+const GITHUB_REPO = 'tinh-diem-trung-binh';
+const GITHUB_BRANCH = 'main';
+
+document.addEventListener('DOMContentLoaded', () => {
+    capNhatBang();
+    tinhDiemTongKet();
+});
+
+function taiVaGiaiMaDuLieu() {
+    const mk = document.getElementById("matKhau").value;
+    const feedback = document.getElementById("unlock-feedback");
+    if (!mk) {
+        feedback.style.color = 'red';
+        feedback.textContent = "Vui lòng nhập mật khẩu!";
+        return;
+    }
+    if (bangDiem.length > 0 && !confirm("Thao tác này sẽ ghi đè dữ liệu hiện tại trên bảng. Bạn có chắc chắn?")) {
+        return;
+    }
+    feedback.textContent = "Đang tải và giải mã dữ liệu...";
+    feedback.style.color = '#004AAD';
+    const url = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCH}/data.enc?timestamp=${new Date().getTime()}`; // Chống cache
+    fetch(url)
+        .then(res => {
+            if (!res.ok) throw new Error(`Không thể tải file dữ liệu! Status: ${res.status}`);
+            return res.text();
+        })
+        .then(encryptedData => {
+            try {
+                const bytes = CryptoJS.AES.decrypt(encryptedData, mk);
+                const originalText = bytes.toString(CryptoJS.enc.Utf8);
+                if (!originalText) throw new Error("Sai mật khẩu hoặc dữ liệu bị lỗi.");
+                bangDiem = JSON.parse(originalText);
+                capNhatBang();
+                tinhDiemTongKet();
+                feedback.textContent = "Mở khóa và tải dữ liệu thành công!";
+                feedback.style.color = '#28a745';
+                document.getElementById("matKhau").value = "";
+                setTimeout(() => feedback.textContent = "", 4000);
+            } catch (err) {
+                console.error("Lỗi giải mã:", err);
+                feedback.style.color = 'red';
+                feedback.textContent = "Mở khóa thất bại. Vui lòng kiểm tra lại mật khẩu.";
+                bangDiem = [];
+                capNhatBang();
+                tinhDiemTongKet();
+            }
+        })
+        .catch(err => {
+            console.error("Lỗi khi tải dữ liệu:", err);
+            feedback.style.color = 'red';
+            feedback.textContent = "Không thể tải dữ liệu. Vui lòng kiểm tra kết nối mạng và đường dẫn GitHub.";
+        });
+}
+
+function downloadJsonData() {
+    if (bangDiem.length === 0) {
+        alert("Không có dữ liệu để tải về. Vui lòng thêm môn học hoặc mở khóa dữ liệu trước.");
+        return;
+    }
+    const jsonData = JSON.stringify(bangDiem, null, 2);
+    const blob = new Blob([jsonData], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'HUTECH_BangDiem_Data.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+}
+
+const tinhDiemHe4 = d => (d >= 8.5) ? 4.0 : (d >= 7.8) ? 3.5 : (d >= 7.0) ? 3.0 : (d >= 6.3) ? 2.5 : (d >= 5.5) ? 2.0 : (d >= 4.8) ? 1.5 : (d >= 4.0) ? 1.0 : 0.0;
+const xepLoai = d => (d >= 8.5) ? "A (Giỏi)" : (d >= 7.8) ? "B+ (Khá)" : (d >= 7.0) ? "B (Khá)" : (d >= 6.3) ? "C+ (TB)" : (d >= 5.5) ? "C (TB)" : (d >= 4.8) ? "D+ (Yếu)" : (d >= 4.0) ? "D (Yếu)" : "F (Rớt)";
+
+function capNhatBang() {
+  const tuKhoa = document.getElementById("searchBox").value.toLowerCase().trim();
+  const tbody = document.getElementById("body-bang-diem");
+  tbody.innerHTML = "";
+  const duLieuLoc = bangDiem.filter(mon =>
+      (mon.maMonHoc || '').toLowerCase().includes(tuKhoa) ||
+      (mon.tenMonHoc || '').toLowerCase().includes(tuKhoa)
+  );
+  if (duLieuLoc.length === 0 && bangDiem.length === 0) {
+      const row = tbody.insertRow();
+      const cell = row.insertCell();
+      cell.colSpan = 8;
+      cell.textContent = "Chưa có dữ liệu. Vui lòng mở khóa hoặc thêm môn.";
+      cell.style.textAlign = 'center';
+  } else if (duLieuLoc.length === 0 && bangDiem.length > 0) {
+      const row = tbody.insertRow();
+      const cell = row.insertCell();
+      cell.colSpan = 8;
+      cell.textContent = "Không tìm thấy môn học phù hợp với từ khóa của bạn.";
+      cell.style.textAlign = 'center';
+  } else {
+      duLieuLoc.forEach(mon => {
+          const originalIndex = bangDiem.findIndex(item => item.maMonHoc === mon.maMonHoc);
+          const row = document.createElement("tr");
+          row.dataset.originalIndex = originalIndex;
+          row.innerHTML = `
+            <td contenteditable="true" data-field="maMonHoc">${mon.maMonHoc}</td>
+            <td contenteditable="true" data-field="tenMonHoc">${mon.tenMonHoc}</td>
+            <td contenteditable="true" data-field="soTinChi">${mon.soTinChi}</td>
+            <td contenteditable="true" data-field="diemHe10">${mon.diemHe10}</td>
+            <td>${tinhDiemHe4(mon.diemHe10).toFixed(1)}</td>
+            <td>${xepLoai(mon.diemHe10)}</td>
+            <td style="color:${mon.diemHe10 >= 4.0 ? 'green':'red'}; font-weight:bold;">${mon.diemHe10 >= 4.0 ? 'Đạt' : 'Không Đạt'}</td>
+            <td><button class="btn-xoa-hang">Xóa</button></td>
+          `;
+          tbody.appendChild(row);
+      });
+  }
+  addEventListenersToTable();
+}
+
+function addEventListenersToTable() {
+    document.querySelectorAll("#body-bang-diem tr[data-original-index]").forEach(row => {
+        const index = parseInt(row.dataset.originalIndex, 10);
+        if (isNaN(index) || index < 0 || !bangDiem[index]) return;
+        
+        row.querySelector(".btn-xoa-hang").addEventListener("click", () => {
+            if (confirm(`Bạn có chắc muốn xóa môn "${bangDiem[index].tenMonHoc}"?`)) {
+                bangDiem.splice(index, 1);
+                capNhatBang();
+                tinhDiemTongKet();
+            }
+        });
+
+        row.querySelectorAll('td[contenteditable="true"]').forEach(cell => {
+            cell.addEventListener('blur', (e) => {
+                const field = e.target.dataset.field;
+                let newValue = e.target.textContent.trim();
+                const monHoc = bangDiem[index];
+                if (!monHoc) return;
+                const oldValue = monHoc[field];
+
+                if (String(oldValue) === newValue) return;
+
+                if (field === 'soTinChi' || field === 'diemHe10') {
+                    const numValue = parseFloat(newValue);
+                    if (field === 'soTinChi' && (isNaN(numValue) || numValue < 1 || numValue > 4)) {
+                        alert("Số tín chỉ phải là một số từ 1 đến 4.");
+                        e.target.textContent = oldValue;
+                        return;
+                    }
+                    if (field === 'diemHe10' && (isNaN(numValue) || numValue < 0 || numValue > 10)) {
+                        alert("Điểm hệ 10 phải là một số từ 0 đến 10.");
+                        e.target.textContent = oldValue;
+                        return;
+                    }
+                     monHoc[field] = numValue;
+                } else {
+                    monHoc[field] = newValue;
+                }
+                capNhatBang();
+                tinhDiemTongKet();
+            });
+             cell.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.target.blur();
+                }
+            });
+        });
+    });
+}
+function tinhDiemTongKet() {
+  let tongDiemTichLuy = 0, tongTin = 0;
+  // Chỉ tính điểm cho các môn đạt (điểm >= 4.0)
+  const monHocTinhDiem = bangDiem.filter(m => m.diemHe10 >= 4.0);
+  monHocTinhDiem.forEach(m => {
+    tongDiemTichLuy += tinhDiemHe4(m.diemHe10) * m.soTinChi;
+    tongTin += parseFloat(m.soTinChi) || 0;
+  });
+  document.getElementById("tong-tin-chi").textContent = `Tổng số tín chỉ tích lũy: ${tongTin}`;
+  if (tongTin > 0) {
+    const diemTB = (tongDiemTichLuy / tongTin).toFixed(2);
+    document.getElementById("diem-trung-binh-tich-luy").textContent = `Điểm TB tích lũy (hệ 4): ${diemTB}`;
+  } else {
+    document.getElementById("diem-trung-binh-tich-luy").textContent = "Điểm TB tích lũy (hệ 4): N/A";
+  }
+}
+
+document.getElementById("searchBox").addEventListener("input", capNhatBang);
+document.getElementById("btn-tinh-diem-trung-binh").addEventListener("click", tinhDiemTongKet);
+
+document.getElementById("form-them-mon").addEventListener("submit", function(e) {
+  e.preventDefault();
+  const thongBao = document.getElementById("thong-bao");
+  let ma = document.getElementById("ma-mon-hoc").value.trim().toUpperCase();
+  let ten = document.getElementById("ten-mon-hoc").value.trim();
+  let tin = parseFloat(document.getElementById("so-tin-chi").value);
+  let diem10 = parseFloat(document.getElementById("diem-he-10").value);
+  thongBao.textContent = "";
+
+  if (!ma || !ten || isNaN(tin) || isNaN(diem10)) {
+    thongBao.textContent = "Vui lòng nhập đầy đủ và chính xác thông tin."; return;
+  }
+  if (tin < 1 || tin > 4) {
+      thongBao.textContent = "Số tín chỉ phải là một số từ 1 đến 4.";
+      document.getElementById("so-tin-chi").focus();
+      return;
+  }
+  if (diem10 < 0 || diem10 > 10) {
+      thongBao.textContent = "Điểm hệ 10 phải là một số từ 0 đến 10.";
+      document.getElementById("diem-he-10").focus();
+      return;
+  }
+  if (bangDiem.some(mon => mon.maMonHoc === ma)) {
+    thongBao.textContent = `Mã môn học "${ma}" đã tồn tại.`; return;
+  }
+
+  bangDiem.push({ maMonHoc: ma, tenMonHoc: ten, soTinChi: tin, diemHe10: diem10 });
+  capNhatBang();
+  tinhDiemTongKet();
+  this.reset();
+  document.getElementById("ma-mon-hoc").focus();
+});
+
+document.getElementById("btn-xoa").addEventListener("click", function(e) {
+  e.preventDefault();
+  if (bangDiem.length > 0 && confirm("Thao tác này sẽ xóa toàn bộ dữ liệu trên bảng. Bạn có chắc chắn?")) {
+    bangDiem = [];
+    capNhatBang();
+    tinhDiemTongKet();
+  }
+});
+
+document.getElementById("btn-luu").addEventListener("click", function(e) {
+  e.preventDefault();
+  if (bangDiem.length === 0) { alert("Không có dữ liệu để lưu."); return; }
+  
+  let content = "BẢNG ĐIỂM TỔNG HỢP\n====================\n\n";
+  bangDiem.forEach(m => {
+    content += `----------------------------------------\n`;
+    content += `Mã môn học: ${m.maMonHoc}\nTên môn học: ${m.tenMonHoc}\n`;
+    content += `Số tín chỉ: ${m.soTinChi}\nĐiểm hệ 10: ${m.diemHe10}\n`;
+    content += `Điểm hệ 4: ${tinhDiemHe4(m.diemHe10).toFixed(1)}\nXếp loại: ${xepLoai(m.diemHe10)}\nTrạng thái: ${m.diemHe10 >= 4.0 ? 'Đạt' : 'Không Đạt'}\n\n`;
+  });
+  
+  const tongTin = bangDiem.filter(m => m.diemHe10 >= 4.0).reduce((sum, m) => sum + m.soTinChi, 0);
+  const tongDiemTichLuy = bangDiem.filter(m => m.diemHe10 >= 4.0).reduce((sum, m) => sum + tinhDiemHe4(m.diemHe10) * m.soTinChi, 0);
+  const diemTB = tongTin > 0 ? (tongDiemTichLuy / tongTin).toFixed(2) : "N/A";
+  
+  content += `====================\nTỔNG KẾT:\n`;
+  content += `Tổng số tín chỉ tích lũy: ${tongTin}\n`;
+  content += `Điểm TB tích lũy (hệ 4): ${diemTB}\n`;
+
+  let blob = new Blob(["\uFEFF" + content], {type: "application/msword;charset=utf-8"});
+  let link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "bang-diem-tong-hop.doc";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(link.href);
+});
+
+
+document.getElementById("btn-save-github").addEventListener("click", function() {
+    if (bangDiem.length === 0) {
+        alert("Không có dữ liệu để lưu. Vui lòng thêm môn học trước.");
+        return;
+    }
+
+    const mk = prompt("🔐 Nhập mật khẩu của bạn để xác minh và lưu dữ liệu:", "");
+    if (mk === null || mk.trim() === "") {
+        alert("❌ Thao tác đã bị hủy.");
+        return;
+    }
+
+    const keyCheckUrl = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCH}/keycheck.enc?timestamp=${new Date().getTime()}`;
+
+    fetch(keyCheckUrl)
+    .then(res => {
+        if (!res.ok) throw new Error("Không tìm thấy file keycheck.enc trên GitHub.");
+        return res.text();
+    })
+    .then(encryptedCheck => {
+        try {
+            const decrypted = CryptoJS.AES.decrypt(encryptedCheck, mk).toString(CryptoJS.enc.Utf8);
+            if (JSON.parse(decrypted) !== "VALID_ADMIN_KEY") {
+                throw new Error("Invalid key content");
+            }
+
+            alert("✅ Mật khẩu hợp lệ. Đang chuẩn bị dữ liệu để cập nhật...");
+            
+            const duLieuJSON = JSON.stringify(bangDiem, null, 2);
+            const duLieuMaHoa = CryptoJS.AES.encrypt(duLieuJSON, mk).toString();
+
+            navigator.clipboard.writeText(duLieuMaHoa).then(() => {
+                alert("Dữ liệu mới đã được mã hóa và sao chép vào clipboard.\n\n👉 Bây giờ bạn sẽ được chuyển đến trang chỉnh sửa. Hãy dán (Ctrl+V) để thay thế nội dung cũ và nhấn 'Commit changes'.");
+                const githubEditUrl = `https://github.com/${GITHUB_USER}/${GITHUB_REPO}/edit/${GITHUB_BRANCH}/data.enc`;
+                window.open(githubEditUrl, '_blank');
+            }).catch(err => {
+                console.error('Lỗi sao chép:', err);
+                alert('❌ Không thể tự động sao chép. Vui lòng dùng công cụ mã hóa thủ công.');
+            });
+
+        } catch (e) {
+            console.error("Lỗi xác thực:", e);
+            alert("❌ Mật khẩu sai. Bạn không có quyền thực hiện thao tác này!");
+        }
+    })
+    .catch(err => {
+        console.error("Lỗi khi tải keycheck.enc:", err);
+        alert("❌ Đã xảy ra lỗi khi xác thực. Vui lòng kiểm tra lại kết nối mạng hoặc thông báo cho Admin.");
+    });
+});
+
+document.getElementById("btn-thoat").addEventListener("click", function(e) {
+  e.preventDefault();
+  if (confirm("Bạn có chắc chắn muốn đóng tab này?")) {
+    window.close();
+  }
+});
+
+document.getElementById('file-upload').addEventListener('change', function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const feedbackEl = document.getElementById('upload-feedback');
+    feedbackEl.textContent = 'Đang xử lý file...';
+    feedbackEl.style.color = '#004AAD';
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+            if (jsonData.length === 0) throw new Error("File Excel trống.");
+
+            const requiredCols = ['MaMonHoc', 'TenMonHoc', 'SoTinChi', 'DiemHe10'];
+            const header = Object.keys(jsonData[0]);
+            for (const col of requiredCols) {
+                if (!header.includes(col)) {
+                     throw new Error(`File Excel thiếu cột bắt buộc: "${col}".`);
+                }
+            }
+            
+            const duLieuMoi = jsonData.map(row => {
+                const maMonHoc = String(row.MaMonHoc || '').trim().toUpperCase();
+                const tenMonHoc = String(row.TenMonHoc || '').trim();
+                const soTinChi = parseFloat(row.SoTinChi);
+                const diemHe10 = parseFloat(row.DiemHe10);
+                if (!maMonHoc || !tenMonHoc || isNaN(soTinChi) || isNaN(diemHe10) || soTinChi < 1 || soTinChi > 4 || diemHe10 < 0 || diemHe10 > 10) return null; 
+                return { maMonHoc, tenMonHoc, soTinChi, diemHe10 };
+            }).filter(item => item !== null);
+
+            if (duLieuMoi.length === 0) throw new Error("Không có dữ liệu hợp lệ trong file Excel (kiểm tra lại các cột và giá trị).");
+
+            if (bangDiem.length > 0 && !confirm("Bạn muốn THAY THẾ dữ liệu hiện tại bằng dữ liệu từ file? (Nhấn 'Cancel' để NỐI THÊM vào cuối danh sách)")) {
+                duLieuMoi.forEach(monMoi => {
+                    if (!bangDiem.some(monCu => monCu.maMonHoc === monMoi.maMonHoc)) {
+                        bangDiem.push(monMoi);
+                    }
+                });
+            } else {
+                bangDiem = duLieuMoi;
+            }
+
+            capNhatBang();
+            tinhDiemTongKet();
+            feedbackEl.textContent = `Tải lên và xử lý thành công ${duLieuMoi.length} môn học!`;
+            feedbackEl.style.color = '#28a745';
+        } catch (err) {
+            feedbackEl.textContent = 'Lỗi: ' + err.message;
+            feedbackEl.style.color = 'red';
+        } finally {
+            event.target.value = ''; // Reset file input
+        }
+    };
+    reader.onerror = () => {
+        feedbackEl.textContent = 'Lỗi khi đọc file.';
+        feedbackEl.style.color = 'red';
+    };
+    reader.readAsArrayBuffer(file);
+});
+
+document.getElementById('btn-download-json').addEventListener('click', downloadJsonData);
+
+</script>
+</body>
+</html>
