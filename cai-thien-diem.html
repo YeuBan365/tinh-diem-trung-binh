@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Công cụ Cải thiện Điểm - HUTECH</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Roboto', sans-serif; background-color: #f4f7f9; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background-color: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        h1, h2 { color: #004AAD; border-bottom: 2px solid #eef4fb; padding-bottom: 10px; }
+        .info-panel { display: flex; justify-content: space-around; background: #eef4fb; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+        .info-item { font-size: 1.1em; }
+        .info-item span { display: block; font-size: 1.5em; font-weight: bold; color: #004AAD; }
+        .target-gpa { color: #28a745; }
+        .gpa-diff { color: #dc3545; }
+        label { font-weight: bold; margin-top: 15px; display: inline-block; }
+        input[type="number"] { padding: 8px; border: 1px solid #ccc; border-radius: 6px; width: 80px; margin-left: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+        th { background-color: #004AAD; color: white; font-weight: bold; }
+        tbody tr:nth-child(even) { background-color: #f9f9f9; }
+        .diem-hientai { color: #6c757d; }
+        .diem-moi { font-weight: bold; }
+        .no-data { text-align: center; padding: 20px; color: #6c757d; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Công cụ Lập kế hoạch & Cải thiện Điểm</h1>
+        <p>Trang này giúp bạn mô phỏng việc học lại, cải thiện điểm các môn yếu để xem ảnh hưởng tới GPA tổng thể. Hãy thay đổi điểm ở cột "Điểm 10 Mới" để xem kết quả.</p>
+
+        <div class="info-panel">
+            <div class="info-item">GPA Hiện tại<span id="gpa-hientai">0.00</span></div>
+            <div class="info-item">
+                GPA Mục tiêu
+                <input type="number" id="gpa-muctieu" step="0.1" min="0" max="4.0" value="2.5">
+            </div>
+            <div class="info-item">GPA "What-if"<span id="gpa-whatif" class="target-gpa">0.00</span></div>
+            <div class="info-item">Cần Cải thiện<span id="gpa-diff" class="gpa-diff">0.00</span></div>
+        </div>
+
+        <h2>Danh sách Môn có thể Cải thiện</h2>
+        <p>Chỉ các môn "Không Đạt" hoặc có điểm D/D+ (dưới 5.5) được liệt kê ở đây.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Mã Môn</th>
+                    <th>Tên Môn</th>
+                    <th>Số TC</th>
+                    <th>Điểm 10 Hiện tại</th>
+                    <th>Điểm 10 Mới (Mô phỏng)</th>
+                </tr>
+            </thead>
+            <tbody id="mon-cai-thien-body"></tbody>
+        </table>
+    </div>
+
+    <script>
+        // === KHAI BÁO BIẾN TOÀN CỤC ===
+        let bangDiemGoc = [];
+        let bangDiemMoPhong = [];
+
+        const tinhDiemHe4 = d => (d >= 8.5) ? 4.0 : (d >= 7.8) ? 3.5 : (d >= 7.0) ? 3.0 : (d >= 6.3) ? 2.5 : (d >= 5.5) ? 2.0 : (d >= 4.8) ? 1.5 : (d >= 4.0) ? 1.0 : 0.0;
+        
+        // === HÀM TÍNH GPA ===
+        function calculateGPA(danhSachMon) {
+            let tongDiemTichLuy = 0;
+            let tongTin = 0;
+            const monDat = danhSachMon.filter(m => m.diemHe10 >= 4.0);
+            
+            monDat.forEach(m => {
+                tongDiemTichLuy += tinhDiemHe4(m.diemHe10) * m.soTinChi;
+                tongTin += m.soTinChi;
+            });
+
+            return (tongTin > 0) ? (tongDiemTichLuy / tongTin) : 0;
+        }
+
+        // === HÀM CẬP NHẬT GIAO DIỆN ===
+        function capNhatGiaoDien() {
+            const gpaHienTai = calculateGPA(bangDiemGoc);
+            const gpaMoi = calculateGPA(bangDiemMoPhong);
+            const gpaMucTieu = parseFloat(document.getElementById('gpa-muctieu').value) || 0;
+
+            document.getElementById('gpa-hientai').textContent = gpaHienTai.toFixed(2);
+            document.getElementById('gpa-whatif').textContent = gpaMoi.toFixed(2);
+            
+            const diff = gpaMucTieu - gpaMoi;
+            const diffEl = document.getElementById('gpa-diff');
+            diffEl.textContent = diff > 0 ? `+${diff.toFixed(2)}` : 'Đạt!';
+            diffEl.style.color = diff > 0 ? '#dc3545' : '#28a745';
+        }
+
+        // === HÀM HIỂN THỊ DANH SÁCH MÔN CẦN CẢI THIỆN ===
+        function renderBangCaiThien() {
+            const tbody = document.getElementById('mon-cai-thien-body');
+            tbody.innerHTML = '';
+
+            // Lọc ra các môn không đạt hoặc điểm thấp (D, D+)
+            const monCanCaiThien = bangDiemGoc
+                .filter(m => m.diemHe10 < 5.5)
+                .sort((a, b) => a.diemHe10 - b.diemHe10); // Sắp xếp điểm từ thấp đến cao
+
+            if (monCanCaiThien.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="no-data">Chúc mừng! Bạn không có môn nào cần cải thiện.</td></tr>`;
+                return;
+            }
+
+            monCanCaiThien.forEach(mon => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${mon.maMonHoc}</td>
+                    <td>${mon.tenMonHoc}</td>
+                    <td>${mon.soTinChi}</td>
+                    <td class="diem-hientai">${mon.diemHe10.toFixed(1)}</td>
+                    <td><input type="number" class="diem-moi" data-ma-mon="${mon.maMonHoc}" value="${mon.diemHe10.toFixed(1)}" min="0" max="10" step="0.1"></td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Gán sự kiện cho các input mới
+            document.querySelectorAll('.diem-moi').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    const maMon = e.target.dataset.maMon;
+                    let diemMoi = parseFloat(e.target.value);
+                    
+                    if (isNaN(diemMoi) || diemMoi < 0) diemMoi = 0;
+                    if (diemMoi > 10) diemMoi = 10;
+
+                    // Cập nhật điểm trong bảng mô phỏng
+                    const monIndex = bangDiemMoPhong.findIndex(m => m.maMonHoc === maMon);
+                    if (monIndex !== -1) {
+                        bangDiemMoPhong[monIndex].diemHe10 = diemMoi;
+                    }
+                    
+                    capNhatGiaoDien();
+                });
+            });
+        }
+        
+        // === KHỞI ĐỘNG KHI TẢI TRANG ===
+        document.addEventListener('DOMContentLoaded', () => {
+            const dataFromStorage = localStorage.getItem('bangDiemData');
+            if (dataFromStorage) {
+                bangDiemGoc = JSON.parse(dataFromStorage);
+                // Tạo một bản sao sâu để mô phỏng, tránh thay đổi dữ liệu gốc
+                bangDiemMoPhong = JSON.parse(JSON.stringify(bangDiemGoc));
+                
+                renderBangCaiThien();
+                capNhatGiaoDien();
+            } else {
+                document.getElementById('mon-cai-thien-body').innerHTML = `<tr><td colspan="5" class="no-data">Không tìm thấy dữ liệu điểm. Vui lòng quay lại trang chính và thêm điểm trước.</td></tr>`;
+            }
+
+            document.getElementById('gpa-muctieu').addEventListener('input', capNhatGiaoDien);
+        });
+
+    </script>
+</body>
+</html>
