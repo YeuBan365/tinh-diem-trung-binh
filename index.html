@@ -180,6 +180,13 @@
         <p><em>File Excel của bạn cần có các cột với tiêu đề chính xác sau: <strong>MaMonHoc, TenMonHoc, SoTinChi, DiemHe10</strong></em></p>
         <input type="file" id="file-upload" accept=".xlsx, .xls" style="border: none; padding-left: 0;">
         <p id="upload-feedback"></p>
+
+        <!-- === PHẦN MÃ MỚI ĐƯỢC THÊM VÀO === -->
+        <h3 style="border-top: 1px solid #eee; margin-top: 20px; padding-top: 20px;">Hoặc tải lên từ file JSON (.json)</h3>
+        <p><em>File JSON phải chứa một mảng các đối tượng, mỗi đối tượng có các key: <strong>maMonHoc, tenMonHoc, soTinChi, diemHe10</strong>. Bạn có thể dùng nút "Tải dữ liệu .json" ở trên để có file mẫu.</em></p>
+        <input type="file" id="json-upload" accept=".json" style="border: none; padding-left: 0;">
+        <p id="json-upload-feedback"></p>
+        <!-- === KẾT THÚC PHẦN MÃ MỚI === -->
       </div>
     </div>
 
@@ -595,6 +602,73 @@ document.getElementById('file-upload').addEventListener('change', function handl
 });
 
 document.getElementById('btn-download-json').addEventListener('click', downloadJsonData);
+
+// === PHẦN SCRIPT MỚI ĐƯỢC THÊM VÀO ===
+document.getElementById('json-upload').addEventListener('change', function handleJsonFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const feedbackEl = document.getElementById('json-upload-feedback');
+    feedbackEl.textContent = 'Đang xử lý file...';
+    feedbackEl.style.color = '#004AAD';
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const jsonData = JSON.parse(e.target.result);
+
+            // Kiểm tra dữ liệu hợp lệ
+            if (!Array.isArray(jsonData) || jsonData.length === 0) throw new Error("File JSON không hợp lệ hoặc trống.");
+            const requiredKeys = ['maMonHoc', 'tenMonHoc', 'soTinChi', 'diemHe10'];
+            const duLieuMoi = jsonData.map(row => {
+                // Kiểm tra sự tồn tại và tính hợp lệ của từng key
+                if (!requiredKeys.every(k => row.hasOwnProperty(k)) ||
+                    typeof row.maMonHoc !== 'string' ||
+                    typeof row.tenMonHoc !== 'string' ||
+                    isNaN(parseFloat(row.soTinChi)) ||
+                    isNaN(parseFloat(row.diemHe10))) {
+                    return null; // Bỏ qua hàng không hợp lệ
+                }
+                // Chuẩn hóa dữ liệu
+                return {
+                    maMonHoc: row.maMonHoc.trim().toUpperCase(),
+                    tenMonHoc: row.tenMonHoc.trim(),
+                    soTinChi: parseFloat(row.soTinChi),
+                    diemHe10: parseFloat(row.diemHe10)
+                };
+            }).filter(item => item !== null); // Lọc ra các hàng hợp lệ
+
+            if (duLieuMoi.length === 0) throw new Error("Không có dữ liệu hợp lệ trong file JSON.");
+
+            if (bangDiem.length > 0 && !confirm("Bạn muốn THAY THẾ dữ liệu hiện tại bằng dữ liệu từ file? (Nhấn 'Cancel' để NỐI THÊM vào cuối danh sách)")) {
+                duLieuMoi.forEach(monMoi => {
+                    // Chỉ thêm nếu mã môn học chưa tồn tại để tránh trùng lặp
+                    if (!bangDiem.some(monCu => monCu.maMonHoc === monMoi.maMonHoc)) {
+                        bangDiem.push(monMoi);
+                    }
+                });
+            } else {
+                bangDiem = duLieuMoi;
+            }
+
+            capNhatBang();
+            tinhDiemTongKet();
+            feedbackEl.textContent = `Tải lên và xử lý thành công ${duLieuMoi.length} môn học!`;
+            feedbackEl.style.color = '#28a745';
+        } catch (err) {
+            feedbackEl.textContent = 'Lỗi: ' + err.message;
+            feedbackEl.style.color = 'red';
+        } finally {
+            event.target.value = ''; // Reset input để có thể tải lại cùng file
+        }
+    };
+    reader.onerror = () => {
+        feedbackEl.textContent = 'Lỗi khi đọc file.';
+        feedbackEl.style.color = 'red';
+    };
+    reader.readAsText(file);
+});
+// === KẾT THÚC PHẦN SCRIPT MỚI ===
 
 </script>
 </body>
