@@ -4,11 +4,13 @@
     <meta charset="UTF-8">
     <title>Công cụ Cải thiện Điểm - HUTECH</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Roboto', sans-serif; background-color: #f4f7f9; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 800px; margin: auto; background-color: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-        h1, h2 { color: #004AAD; border-bottom: 2px solid #eef4fb; padding-bottom: 10px; }
-        .info-panel { display: flex; justify-content: space-around; background: #eef4fb; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+        h1, h2, h3 { color: #004AAD; }
+        h1, h2 { border-bottom: 2px solid #eef4fb; padding-bottom: 10px; }
+        .info-panel { display: flex; justify-content: space-around; background: #eef4fb; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; flex-wrap: wrap; gap: 15px; }
         .info-item { font-size: 1.1em; }
         .info-item span { display: block; font-size: 1.5em; font-weight: bold; color: #004AAD; }
         .target-gpa { color: #28a745; }
@@ -22,6 +24,13 @@
         .diem-hientai { color: #6c757d; }
         .diem-moi { font-weight: bold; }
         .no-data { text-align: center; padding: 20px; color: #6c757d; font-style: italic; }
+        .chart-gpa-container {
+            border: 1px solid #eef4fb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 25px;
+            background-color: #fdfdff;
+        }
     </style>
 </head>
 <body>
@@ -37,6 +46,32 @@
             </div>
             <div class="info-item">GPA "What-if"<span id="gpa-whatif" class="target-gpa">0.00</span></div>
             <div class="info-item">Cần Cải thiện<span id="gpa-diff" class="gpa-diff">0.00</span></div>
+        </div>
+        
+        <div class="chart-gpa-container">
+            <h3 style="text-align:center; margin-top: 0;">📊 Biểu đồ so sánh theo GPA yêu cầu</h3>
+            <div style="text-align:center;">
+              <label for="gpa-yeu-cau"><strong>🎯 GPA yêu cầu:</strong></label>
+              <input type="number" id="gpa-yeu-cau" min="0" max="4" step="0.1" value="3.2">
+            </div>
+            <div style="position: relative; max-width: 300px; margin: 20px auto;">
+              <canvas id="chart-gpa-yeu-cau"></canvas>
+            </div>
+            <!-- Container cho danh sách môn chưa đạt (ẩn mặc định) -->
+            <div id="danh-sach-chua-dat-container" style="display: none; margin-top: 20px;">
+                <h3 style="text-align:center;">Danh sách môn chưa đạt yêu cầu</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mã Môn</th>
+                            <th>Tên Môn</th>
+                            <th>Số TC</th>
+                            <th>Điểm Hệ 4</th>
+                        </tr>
+                    </thead>
+                    <tbody id="body-mon-chua-dat"></tbody>
+                </table>
+            </div>
         </div>
 
         <h2>Danh sách Môn có thể Cải thiện</h2>
@@ -56,13 +91,12 @@
     </div>
 
     <script>
-        // === KHAI BÁO BIẾN TOÀN CỤC ===
         let bangDiemGoc = [];
         let bangDiemMoPhong = [];
+        let bieuDoTuyChinh = null;
 
         const tinhDiemHe4 = d => (d >= 8.5) ? 4.0 : (d >= 7.8) ? 3.5 : (d >= 7.0) ? 3.0 : (d >= 6.3) ? 2.5 : (d >= 5.5) ? 2.0 : (d >= 4.8) ? 1.5 : (d >= 4.0) ? 1.0 : 0.0;
         
-        // === HÀM TÍNH GPA ===
         function calculateGPA(danhSachMon) {
             let tongDiemTichLuy = 0;
             let tongTin = 0;
@@ -72,11 +106,9 @@
                 tongDiemTichLuy += tinhDiemHe4(m.diemHe10) * m.soTinChi;
                 tongTin += m.soTinChi;
             });
-
             return (tongTin > 0) ? (tongDiemTichLuy / tongTin) : 0;
         }
 
-        // === HÀM CẬP NHẬT GIAO DIỆN ===
         function capNhatGiaoDien() {
             const gpaHienTai = calculateGPA(bangDiemGoc);
             const gpaMoi = calculateGPA(bangDiemMoPhong);
@@ -91,21 +123,103 @@
             diffEl.style.color = diff > 0 ? '#dc3545' : '#28a745';
         }
 
-        // === HÀM HIỂN THỊ DANH SÁCH MÔN CẦN CẢI THIỆN ===
+        // Đã sửa: Hàm này chỉ có nhiệm vụ điền dữ liệu và hiển thị danh sách
+        function hienThiDanhSachChuaDat() {
+            const container = document.getElementById('danh-sach-chua-dat-container');
+            const tbody = document.getElementById('body-mon-chua-dat');
+            const gpaYeuCau = parseFloat(document.getElementById("gpa-yeu-cau").value);
+
+            const chuaDat = bangDiemGoc
+                .filter(m => tinhDiemHe4(m.diemHe10) < gpaYeuCau)
+                .sort((a, b) => tinhDiemHe4(a.diemHe10) - tinhDiemHe4(b.diemHe10));
+
+            tbody.innerHTML = ''; 
+
+            if (chuaDat.length > 0) {
+                chuaDat.forEach(mon => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${mon.maMonHoc}</td>
+                        <td>${mon.tenMonHoc}</td>
+                        <td>${mon.soTinChi}</td>
+                        <td style="font-weight: bold; color: #dc3545;">${tinhDiemHe4(mon.diemHe10).toFixed(1)}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } else {
+                tbody.innerHTML = `<tr><td colspan="4" class="no-data">Chúc mừng! Tất cả các môn đều đạt yêu cầu.</td></tr>`;
+            }
+            container.style.display = 'block';
+        }
+
+        function veBieuDoTheoGPAYeuCau() {
+            const gpaYeuCau = parseFloat(document.getElementById("gpa-yeu-cau").value);
+            if (isNaN(gpaYeuCau)) return;
+            
+            document.getElementById('danh-sach-chua-dat-container').style.display = 'none';
+
+            const dat = bangDiemGoc.filter(m => tinhDiemHe4(m.diemHe10) >= gpaYeuCau);
+            const chuaDat = bangDiemGoc.filter(m => tinhDiemHe4(m.diemHe10) < gpaYeuCau);
+
+            const soTCdat = dat.reduce((tong, m) => tong + m.soTinChi, 0);
+            const soTCchuaDat = chuaDat.reduce((tong, m) => tong + m.soTinChi, 0);
+
+            const ctx = document.getElementById("chart-gpa-yeu-cau").getContext("2d");
+            if (bieuDoTuyChinh) bieuDoTuyChinh.destroy();
+
+            bieuDoTuyChinh = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: [`✅ Đạt yêu cầu (≥ ${gpaYeuCau.toFixed(1)})`, `❌ Chưa đạt (< ${gpaYeuCau.toFixed(1)})`],
+                    datasets: [{
+                        data: [soTCdat, soTCchuaDat],
+                        backgroundColor: ['#4caf50', '#ff9800'],
+                        borderColor: '#fff',
+                        borderWidth: 2,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { font: { size: 14 } } },
+                        tooltip: { callbacks: { label: (context) => `${context.label}: ${context.raw} TC` } }
+                    },
+                    cutout: '60%',
+                    // Đã sửa: Logic onClick được tập trung tại đây
+                    onClick: (event, elements) => {
+                        const container = document.getElementById('danh-sach-chua-dat-container');
+                        if (elements.length > 0) {
+                            const clickedIndex = elements[0].index;
+                            // Nếu click vào phần "Chưa đạt" (index = 1)
+                            if (clickedIndex === 1) {
+                                // Nếu đang hiển thị thì ẩn đi, nếu đang ẩn thì hiện ra
+                                if (container.style.display === 'block') {
+                                    container.style.display = 'none';
+                                } else {
+                                    hienThiDanhSachChuaDat();
+                                }
+                            } else {
+                                // Nếu click vào bất kỳ phần nào khác, ẩn danh sách đi
+                                container.style.display = 'none';
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         function renderBangCaiThien() {
             const tbody = document.getElementById('mon-cai-thien-body');
             tbody.innerHTML = '';
-
-            // Lọc ra các môn không đạt hoặc điểm thấp (D, D+)
             const monCanCaiThien = bangDiemGoc
                 .filter(m => m.diemHe10 < 5.5)
-                .sort((a, b) => a.diemHe10 - b.diemHe10); // Sắp xếp điểm từ thấp đến cao
+                .sort((a, b) => a.diemHe10 - b.diemHe10); 
 
             if (monCanCaiThien.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="5" class="no-data">Chúc mừng! Bạn không có môn nào cần cải thiện.</td></tr>`;
                 return;
             }
-
             monCanCaiThien.forEach(mon => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
@@ -117,8 +231,6 @@
                 `;
                 tbody.appendChild(row);
             });
-
-            // Gán sự kiện cho các input mới
             document.querySelectorAll('.diem-moi').forEach(input => {
                 input.addEventListener('input', (e) => {
                     const maMon = e.target.dataset.maMon;
@@ -127,34 +239,34 @@
                     if (isNaN(diemMoi) || diemMoi < 0) diemMoi = 0;
                     if (diemMoi > 10) diemMoi = 10;
 
-                    // Cập nhật điểm trong bảng mô phỏng
                     const monIndex = bangDiemMoPhong.findIndex(m => m.maMonHoc === maMon);
                     if (monIndex !== -1) {
                         bangDiemMoPhong[monIndex].diemHe10 = diemMoi;
                     }
-                    
                     capNhatGiaoDien();
                 });
             });
         }
         
-        // === KHỞI ĐỘNG KHI TẢI TRANG ===
         document.addEventListener('DOMContentLoaded', () => {
             const dataFromStorage = localStorage.getItem('bangDiemData');
+            const chartContainer = document.querySelector('.chart-gpa-container');
+
             if (dataFromStorage) {
                 bangDiemGoc = JSON.parse(dataFromStorage);
-                // Tạo một bản sao sâu để mô phỏng, tránh thay đổi dữ liệu gốc
                 bangDiemMoPhong = JSON.parse(JSON.stringify(bangDiemGoc));
-                
+                chartContainer.style.display = 'block';
                 renderBangCaiThien();
                 capNhatGiaoDien();
+                veBieuDoTheoGPAYeuCau();
             } else {
+                chartContainer.style.display = 'none';
                 document.getElementById('mon-cai-thien-body').innerHTML = `<tr><td colspan="5" class="no-data">Không tìm thấy dữ liệu điểm. Vui lòng quay lại trang chính và thêm điểm trước.</td></tr>`;
             }
 
             document.getElementById('gpa-muctieu').addEventListener('input', capNhatGiaoDien);
+            document.getElementById("gpa-yeu-cau").addEventListener('input', veBieuDoTheoGPAYeuCau);
         });
-
     </script>
 </body>
 </html>
